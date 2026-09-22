@@ -1,44 +1,70 @@
-name: Windows Cloud PC - AnyDesk Direct
+name: Windows Cloud PC - Anydesk Melhorado
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Khoi tao AnyDesk
+    name: Iniciando Sistema Reforçado
     runs-on: windows-latest
-    timeout-minutes: 360 # Gioi han toi da cua GitHub Actions la 6 tieng (360 phut)
+    timeout-minutes: 360
+
+    env:
+      PROCESSOR_COUNT: 8
+      OPENGL: "1"
+      GITHUB_PRESERVE_WORKFLOW: true
+      MEMORY_GB: 16
 
     steps:
-      - name: Tai va Cai dat AnyDesk
+      - name: Baixar e Instalar Essenciais
         shell: powershell
         run: |
-          Write-Host "Dang tai AnyDesk..."
-          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "anydesk.exe" -UseBasicParsing
-          
-          Write-Host "Dang cai dat..."
-          Start-Process -FilePath ".\anydesk.exe" -ArgumentList '--install "C:\Program Files (x86)\AnyDesk" --start-with-win --silent' -Wait
-          
-          # Dat mat khau ket noi (Thay 'MatKhau123' thanh mat khau ban muon)
-          echo "MatKhau123" | & "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" --set-password
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat" -UseBasicParsing
+          cmd /c Downloads.bat
 
-      - name: Lay ma ID AnyDesk
+      - name: Iniciar AnyDesk
+        shell: powershell
+        run: |
+          if (Test-Path "start.bat") {
+            cmd /c start.bat
+            Start-Sleep -Seconds 10
+          } else {
+            Write-Host "ERRO: Arquivo start.bat não encontrado — verifique o download."
+            exit 1
+          }
+
+      - name: Hien thi ID AnyDesk
         shell: powershell
         run: |
           Start-Sleep -Seconds 5
-          $id = & "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" --get-id
-          Write-Host "=========================================="
-          Write-Host "MA ID ANYDESK CUA BAN LA: $id"
-          Write-Host "=========================================="
+          # Tim file anydesk.exe trong thư mục hiện tại hoặc các thư mục con
+          $anydeskExe = Get-ChildItem -Filter "anydesk.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($anydeskExe) {
+            $id = & $anydeskExe.FullName --get-id
+            Write-Host "=========================================="
+            Write-Host "MA ID ANYDESK CUA BAN LA: $id"
+            Write-Host "=========================================="
+          } else {
+            Write-Host "Không tìm thấy file anydesk.exe do Downloads.bat tải về."
+          }
 
-      - name: Duy tri ket noi
+      - name: Monitoramento Contínuo e Reinício Automático
         shell: powershell
         run: |
           while ($true) {
-            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-            if (-not $process) {
-              Write-Host "Khoi dong lai AnyDesk..."
-              Start-Process -FilePath "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
+            $anydesk = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $anydesk -or $anydesk.HasExited) {
+              Write-Host "Reiniciando AnyDesk..."
+              if (Test-Path "start.bat") {
+                cmd /c start.bat
+              }
             }
             Start-Sleep -Seconds 60
           }
+
+      - name: Limpeza Segura
+        if: always()
+        shell: powershell
+        run: |
+          Remove-Item Downloads.bat -Force -ErrorAction SilentlyContinue
+          Write-Host "Limpeza finalizada."
