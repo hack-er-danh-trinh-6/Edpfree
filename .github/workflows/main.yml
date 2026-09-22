@@ -1,50 +1,44 @@
-name: Windows Cloud PC - Anydesk Melhorado
+name: Windows Cloud PC - AnyDesk Direct
+
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Iniciando Sistema Reforçado
+    name: Khoi tao AnyDesk
     runs-on: windows-latest
-    timeout-minutes: 10080
-    env:
-      PROCESSOR_COUNT: 8
-      OPENGL: "1"
-      GITHUB_PRESERVE_WORKFLOW: true
-      MEMORY_GB: 16
+    timeout-minutes: 360 # Gioi han toi da cua GitHub Actions la 6 tieng (360 phut)
+
     steps:
-      - name: Baixar e Instalar Essenciais
+      - name: Tai va Cai dat AnyDesk
+        shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat" -UseBasicParsing
-          cmd /c Downloads.bat
+          Write-Host "Dang tai AnyDesk..."
+          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "anydesk.exe" -UseBasicParsing
+          
+          Write-Host "Dang cai dat..."
+          Start-Process -FilePath ".\anydesk.exe" -ArgumentList '--install "C:\Program Files (x86)\AnyDesk" --start-with-win --silent' -Wait
+          
+          # Dat mat khau ket noi (Thay 'MatKhau123' thanh mat khau ban muon)
+          echo "MatKhau123" | & "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" --set-password
 
-      - name: Iniciar AnyDesk
+      - name: Lay ma ID AnyDesk
+        shell: powershell
         run: |
-          if (Test-Path "start.bat") {
-            cmd /c start.bat
-            Start-Sleep -Seconds 10
-          } else {
-            Write-Host "ERRO: Arquivo start.bat não encontrado — verifique o download."
-            exit 1
-          }
+          Start-Sleep -Seconds 5
+          $id = & "C:\Program Files (x86)\AnyDesk\AnyDesk.exe" --get-id
+          Write-Host "=========================================="
+          Write-Host "MA ID ANYDESK CUA BAN LA: $id"
+          Write-Host "=========================================="
 
-      - name: Monitoramento Contínuo e Reinício Automático
+      - name: Duy tri ket noi
+        shell: powershell
         run: |
           while ($true) {
-            $anydesk = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-            if (-not $anydesk -or $anydesk.HasExited) {
-              Write-Host "Reiniciando AnyDesk..."
-              cmd /c start.bat
+            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Write-Host "Khoi dong lai AnyDesk..."
+              Start-Process -FilePath "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
             }
             Start-Sleep -Seconds 60
           }
-
-      - name: Manter Sistema Ativo
-        run: |
-          Start-Sleep -Seconds 604800
-
-      - name: Limpeza Segura
-        if: always()
-        run: |
-          Remove-Item Downloads.bat -Force -ErrorAction SilentlyContinue
-          Write-Host "Limpeza finalizada."
